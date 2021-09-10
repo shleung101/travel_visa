@@ -1,0 +1,71 @@
+-- TRAVEL VISA COST: DATA CLEANING AND EXPLORATORY 
+
+-- select * 
+-- from visa_cost
+-- limit 20
+
+-- REMOVE ALL ROWS THAT HAVE MISSING VALUES IN ALL PERDAILYINCOME AND VISA COLUMNS 
+-- missing values indicate that either there is no info or there is no recorded traveling in that direction
+-- TOTAL: 5635 ENTRIES WITH ALL NULLS 
+
+-- select count(*)
+-- from visa_cost
+-- where 
+-- 	tourist_visa is null 
+-- 	and student_visa is null
+-- 	and business_visa is null
+-- 	and work_visa is null
+-- 	and family_reunification_visa is null
+-- 	and transit_visa is null
+-- 	and other_motives_visa is null
+-- 	and tourist_perdailyincome is null
+-- 	and student_perdailyincome is null
+-- 	and business_perdailyincome is null
+-- 	and work_perdailyincome is null
+-- 	and family_perdailyincome is null
+-- 	and transit_perdailyincome is null
+-- 	and other_perdailyincome is null
+
+
+-- TOTAL COUNT: 38608 ENTRIES
+-- select count(*)
+-- from visa_cost
+
+-- ONCE DROP NULLS, EXPECT 38608 - 5635 = 32973 LEFT
+-- delete from visa_cost
+-- where 
+-- 	tourist_visa is null 
+-- 	and student_visa is null
+-- 	and business_visa is null
+-- 	and work_visa is null
+-- 	and family_reunification_visa is null
+-- 	and transit_visa is null
+-- 	and other_motives_visa is null
+-- 	and tourist_perdailyincome is null
+-- 	and student_perdailyincome is null
+-- 	and business_perdailyincome is null
+-- 	and work_perdailyincome is null
+-- 	and family_perdailyincome is null
+-- 	and transit_perdailyincome is null
+-- 	and other_perdailyincome is null
+
+-- FIND AVG COST OF EACH TYPE OF VISA (in USD) GROUPING BY SOURCE 
+-- select source_iso3, "source", avg(tourist_visa) tourist, avg(student_visa) student, avg(work_visa) "work", avg(business_visa) business
+-- from visa_cost
+-- group by source_iso3, "source"
+-- order by tourist desc
+
+-- FIND AVG TIME TO WORK TO AFFORD VISA 
+-- select source_iso3, "source", avg(tourist_perdailyincome) tourist, avg(student_perdailyincome) student, avg(work_perdailyincome) "work", avg(business_perdailyincome) business
+-- from visa_cost
+-- group by source_iso3, "source"
+-- order by tourist desc
+
+-- REPLACE IVORY COAST NAME
+-- update visa_cost 
+-- set "source" = replace("source", 'CÃ´te d''Ivoire', 'Ivory Coast') 
+
+
+
+
+

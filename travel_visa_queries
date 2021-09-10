@@ -1,0 +1,189 @@
+-- QUERIES USING VISA_JOIN 
+
+-- SUM OF TRIPS FOR EACH SOURCE REGION EACH YEAR
+select source_name, "year", sum(estimated_trips) trips_peryear, gdp, pol_rights, dem
+from visa_join
+group by source_name, "year", gdp, pol_rights, dem
+order by source_name desc
+
+-- ACCORDING TO UNHCR, THERE ARE 2.5 MILLION AFGHAN REFUGEES IN THE WORLD. WHICH COUNTRIES HAVE THEY DEFECTED TO? 
+-- Although Western media tends to paint refugees as defecting to European countries/America, most Afghan trips (likely refugees) are seen to be visiting countries nearby in the Western or Southern Asia
+
+select source_name, target_name, "year", estimated_trips, target_subregion
+from visa_join
+where source_name = 'Afghanistan' and estimated_trips is not null 
+order by estimated_trips desc
+
+
+-- ELECTORAL DEMOCRACY 
+
+-- COUNT: yes = 109254; no = 67122
+select dem, count(dem) 
+from visa_join
+group by dem
+
+-- PERCENTAGE (including nulls)
+-- 57% dem, 35% not dem, 7.5% null 
+select dem, count(*)*100/sum(count(*)) over()
+from visa_join
+group by dem
+
+
+-- PERCENTAGE (not including nulls)
+61% dem, 38% not dem
+select dem, count(dem)*100/sum(count(dem)) over() as percent_dem
+from visa_join
+group by dem
+
+-- QUESTION: DO NON-DEMOCRATIC COUNTRIES HAVE A HIGHER VISA COST?
+
+-- RESULT: In general, nondemocratic countries take around around 3x or more working days on average to afford each type of visa. Furthermore, the avg gdp in nondemocratic countries are 2x lower than that of democratic countries. Perhaps the average working wage in nondemocratic countries are on average lower than that of democratic countries, therefore requiring workers from nondemocratic countries to work much longer
+
+select dem, 
+	avg(tourist_perdailyincome) tourist_dayswork, avg(student_perdailyincome) student_dayswork, avg(business_perdailyincome) business_dayswork, 
+	avg(work_perdailyincome) work_dayswork, avg(family_perdailyincome) family_dayswork, avg(transit_perdailyincome) transit_dayswork, 			
+	avg(other_perdailyincome) other_dayswork, avg(gdp) avg_gdp
+from visa_join
+group by dem
+
+
+-- COST OF VISA BY REGION 
+
+-- SOURCE REGION
+-- Africa has one of the highest visa cost in USD 
+select source_region, avg(tourist_visa) avg_tourist_cost, avg(student_visa) avg_student_cost, avg(business_visa) avg_business_cost,
+		avg(work_visa) avg_work_cost, avg(family_reunification_visa) avg_fam_cost, avg(transit_visa) avg_transit_cost, 
+		avg(other_motives_visa) avg_other_cost
+from visa_join
+group by source_region
+order by avg_tourist_cost desc
+
+-- SOURCE REGION AND TARGET REGION 
+-- Create a temp table 
+
+create temp table type_cost as 
+
+	select source_region, target_region, avg(tourist_visa) avg_tourist_cost, avg(student_visa) avg_student_cost, avg(business_visa) avg_business_cost,
+			avg(work_visa) avg_work_cost, avg(family_reunification_visa) avg_fam_cost, avg(transit_visa) avg_transit_cost, 
+			avg(other_motives_visa) avg_other_cost
+	from visa_join
+	where not (source_region = 'Oceania' or target_region = 'Oceania')
+	group by source_region, target_region
+	order by source_region desc
+
+
+-- It is more expensive to get any visa type (except business) from Africa --> Europe than Europe --> Africa 
+select *
+from type_cost 
+where (source_region = 'Europe' and target_region = 'Africa') or (source_region = 'Africa' and target_region = 'Europe')
+order by avg_work_cost desc
+
+
+-- COST DIFFERENCE BETWEEN EU AND AFRICA
+select source_region, target_region, avg_tourist_cost, 
+		avg_tourist_cost - lag(avg_tourist_cost, 1) over() as difference
+from type_cost 
+where (source_region = 'Europe' and target_region = 'Africa') or (source_region = 'Africa' and target_region = 'Europe')
+order by avg_work_cost desc
+
+
+-- RANKING VISA COST BY REGION
+-- Tourist traveling within Europe is the cheapest and traveling within Africa is most expensive. For all combinations, it is much cheaper to travel from Europe to anywhere than vice versa. 
+select source_region, target_region, avg_tourist_cost, rank() over(order by avg_tourist_cost) as cost_rank
+from type_cost 
+
+-- TOURIST VISA COST ON AVG 
+-- Africa, Asia, Americas, Europe 
+-- Slightly surprising bc I thought would be slightly cheaper since there are some powerhouse countries in Asia. Perhaps the relations are not that good.
+select source_region, avg(avg_tourist_cost) as cost
+from type_cost 
+group by source_region
+order by cost desc
+
+-- STUDENT VISA 
+
+-- AVG STUDENT VISA COST: ASIA, AFRICA, AMERICAS VISA COST CLOSE TOGETHER
+select source_region, avg(avg_student_cost) as cost
+from type_cost 
+group by source_region
+order by cost desc
+
+-- STUDENT COST RANK 
+-- Most expensive to get student visa to Americas; maybe large demand to go to school in US/Canada allows for price hike?
+
+-- Cheapest to get student visa to Asia (aside from EU to EU)
+select source_region, target_region, avg_student_cost, rank() over(order by avg_student_cost) as cost_rank
+from type_cost 
+
+-- BUSINESS VISA
+-- Most expensive to go to Africa and Americas (perhaps not as many business opportunities?)
+select source_region, avg(avg_business_cost) as cost
+from type_cost 
+group by source_region
+order by cost desc
+
+select source_region, target_region, avg_business_cost, rank() over(order by avg_business_cost) as cost_rank
+from type_cost 
+
+
+-- PERCENT CHANGE IN VISA TRIPS OVER THE YEARS 
+
+select "year", sum(estimated_trips) sum_trips
+from visa_join
+group by "year"
+
+-- TESTING LAG FUNCTION
+select "year", estimated_trips, lag(estimated_trips, 1) over() as change
+from visa_join
+
+
+-- SHOW PERCENT CHANGE IN ESTIMATED TRIPS PER YEAR 
+select *, case when last_year_sum_trip is not null 
+			then (sum_trips - last_year_sum_trip)/last_year_sum_trip 
+			else null end per_change
+from
+(			
+	select *, lag(sum_trips, 1) over(order by "year") as last_year_sum_trip 
+	from
+	(
+		select "year", sum(estimated_trips) sum_trips
+		from visa_join
+		group by "year"
+	) t1
+) t2
+
+
+-- POLITICAL RIGHTS 
+-- 1 = HAS POLITICAL RIGHTS; 7 = LIMITED POLITICAL RIGHTS
+
+-- DO COUNTRIES WITH A LOWER POLITICAL RIGHTS SCORE HAVE FEWER TRAVELS OR TRAVEL TO NEARER COUNTRIES MORE OFTEN?
+-- Countries with political rights = 1 travel the most. Surprisingly, countries with political rights = 7 travel the second most often. 
+-- Possibly a lot of pol_right = 7 countries traveling as refugees (ie: trying to flee the country). 
+-- Traveling distance is the least for countries pol_rights = 5,6,7. Possibly fleeing to nearby countries
+
+select pol_rights, count(distinct(source_name)), sum(estimated_trips) total_trips, avg(dist) avg_dist,
+	avg(gdp) avg_gdp
+	from visa_join 
+	where pol_rights is not null and gdp is not null
+	group by pol_rights
+	order by total_trips desc
+
+-- FIND PERCENT BREAKDOWN OF COUNTRIES IN POL_RIGHTS AND TOTAL TRIPS 
+-- About 23% of the world has pol_rights=1, but they account for 57% of the traveling. 
+-- Countries with pol_rights=7 make up about 30% of the world's gdp, likely bc of China 
+
+select *, source_count*100/sum(source_count) over() percent_pol, total_trips*100/sum(total_trips) over() percent_trips, 
+	avg_gdp*100/sum(avg_gdp) over() percent_gdp
+from (
+		select pol_rights, count(distinct(source_name)) source_count,
+		sum(estimated_trips) total_trips, avg(gdp) avg_gdp
+		from visa_join 
+		where pol_rights is not null and gdp is not null
+		group by pol_rights
+) t1
+
+
+
+
+
+

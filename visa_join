@@ -1,0 +1,61 @@
+
+
+-- COUNTING DISTINCT ENTRIES IN MOBILITY
+-- 229,320 DISTINCT ENTRIES
+-- select count(*) from
+-- (select distinct source_name, target_name, "year" from mobility) t1
+
+-- select count(*) from mobility
+
+
+-- JOIN ON SOURCE, TARGET, YEAR
+select *
+from mobility mo 
+inner join visa_cost vc 
+	on mo.source_name = vc.source
+	and mo.target_name = vc.target
+	and mo.source_iso3 = vc.source_iso3
+	and mo.target_iso3 = vc.target_iso3
+left join "GDP" gdp
+	on mo.year = cast(gdp.year as numeric)
+	and mo.source_iso3 = gdp."Country Code"
+left join "Democracy" dem
+	on mo.year = cast(dem.year as numeric)
+	and mo.source_iso3 = dem.country_iso3
+left join "Political_Rights" pol
+	on mo.year = cast(pol.year as numeric)
+	and mo.source_iso3 = pol.country_iso3
+
+
+-- CREATING TABLE
+create table visa_join 
+as 
+	select source_name, target_name, mo.source_iso3, mo.target_iso3, mo."year",
+		estimated_trips, dist, mo.source_region, mo.target_region, mo.source_subregion, mo.target_subregion, 
+		tourist_visa, student_visa, business_visa,
+		work_visa, family_reunification_visa, transit_visa, other_motives_visa,
+		tourist_perdailyincome, student_perdailyincome, business_perdailyincome,
+		work_perdailyincome, family_perdailyincome, transit_perdailyincome, other_perdailyincome, 
+		gdp, dem, pol_rights
+	from mobility mo 
+	inner join visa_cost vc
+		on mo.source_name = vc.source
+		and mo.target_name = vc.target
+		and mo.source_iso3 = vc.source_iso3
+		and mo.target_iso3 = vc.target_iso3		
+	left join "GDP" gdp
+		on mo.year = cast(gdp.year as numeric)
+		and mo.source_iso3 = gdp."Country Code"
+	left join "Democracy" dem
+		on mo.year = cast(dem.year as numeric)
+		and mo.source_iso3 = dem.country_iso3
+	left join "Political_Rights" pol
+		on mo.year = cast(pol.year as numeric)
+		and mo.source_iso3 = pol.country_iso3
+
+
+
+
+
+
+
